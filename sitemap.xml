@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<urlset xmlns='http://www.sitemaps.org/schemas/sitemap/0.9'>
+    <url>
+        <loc>
+            http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox/
+        </loc>
+        <lastmod>2011-10-02T18:34:47+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://alohomora.github.com/blog/archives/</loc>
+        <lastmod>2011-10-02T19:45:10+05:30</lastmod>
+    </url>
+    <url>
+        <loc>http://alohomora.github.com/</loc>
+        <lastmod>2011-10-02T18:34:47+05:30</lastmod>
+    </url>
+</urlset>

@@ -1,0 +1,340 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Coding Mojo: Deploying a Rails Application on TorqueBox</title>
+  <meta name="author" content="RC">
+  
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+
+  <link rel="canonical" href="http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox/"/>
+  <link href="/images/favicon.png" rel="shortcut icon" />
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="http://s3.amazonaws.com/ender-js/jeesh.min.js"></script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <script src="/javascripts/cufon-yui.js" type="text/javascript"></script>
+  <script src="/javascripts/Papyrus_400.font.js" type="text/javascript"></script>
+  <link href='http://fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic' rel='stylesheet' type='text/css'>
+  <link href='http://fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic' rel='stylesheet' type='text/css'>
+  
+  <link href="/atom.xml" rel="alternate" title="Coding Mojo" type="application/atom+xml"/>
+  
+
+  
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+  
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = 'http://platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+</head>
+
+<body  >
+  <header><hgroup>
+  <h1><a href="/">Coding Mojo</a></h1>
+  
+    <h4>A muggle's musings</h4>
+  
+</hgroup>
+
+<script>
+  $('hgroup').click(function(){
+    window.location.href = "/";
+  });
+  Cufon.replace('hgroup h1');
+</script>
+</header>
+  <nav role=navigation><ul role=subscription data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+<form action="http://google.com/search" method="get">
+  <fieldset role="site-search">
+    <input type="hidden" name="q" value="site:alohomora.github.com" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+<ul role=main-navigation>
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry">
+  
+  <header>
+    
+      <div class="entry-title">Deploying a Rails Application on TorqueBox</di>
+    
+    
+      <p class="meta">
+
+
+
+
+<time datetime="2011-10-02 14:57:00 +0530" pubdate  updated >Oct 2<span>nd</span>, 2011</time>
+
+
+</p>
+    
+  </header>
+
+
+<div class="entry-content"><p><img class="left" src="/images/posts/knob.png">
+Previously, we used Warbler/Tomcat setup to deploy our JRuby on Rails applications. We were working on performance tuning one of those applications and came across <a href="http://torquebox.org/">TorqueBox</a>. Support for rack applications, scheduled jobs, built-in high-performance cache store on top of <a href="http://www.jboss.org/infinispan">Infinispan</a> and <a href="http://www.jboss.org/jbossas">JBoss AS</a> application server all sounded pretty exciting. So, we went ahead and migrated our application to TorqueBox. We could clearly see improvements in performance and the actual benchmarking comparisons will be published in another post in the future.</p>
+
+<p>Though the TorqueBox documentation is well written, when it comes to migrating a fully-featured application to another framework, we faced several hiccups. I had to look-up several blogs, forums and many SO threads to resolve those issues. This article aims at documenting all that information in once place.</p>
+
+<!--more-->
+
+
+<h3>Adding TorqueBox to your application</h3>
+
+<p>Add the <code>torquebox</code> gem to your Gemfile only for the deployment environments. This is because TorqueBox gems have several dependencies and this affects the load time for development and test environments. It is essential that you specify the platform as <code>jruby</code> to make bundler install the dependencies correctly.</p>
+
+<figure class='code'><figcaption><span>Gemfile  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">group</span> <span class="ss">:qa</span><span class="p">,</span> <span class="ss">:staging</span><span class="p">,</span> <span class="ss">:production</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">gem</span> <span class="s1">&#39;torquebox&#39;</span><span class="p">,</span> <span class="ss">:platforms</span> <span class="o">=&gt;</span> <span class="ss">:jruby</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Installing the gem gives us access to a couple of rake tasks that assist in deployment and also the TorqueBox cache store client, in case your application uses caching.</p>
+
+<h3>Installing the TorqueBox binary</h3>
+
+<p>Let&#8217;s assume you are configuring TorqueBox in the production environment. The next step is to install the binary distribution that contains the TorqueBox server.  You can download the latest stable version Torque 1.1.1 <a href="http://repository-torquebox.forge.cloudbees.com/release/org/torquebox/torquebox-dist/1.1.1/torquebox-dist-1.1.1-bin.zip">here</a>. Please note that you need to have at least Java JDK 6 installed on your deployment machine for TorqueBox to work.</p>
+
+<p>Unzip the binary to some folder on your machine. I assume the folder name as <code>torquebox-current</code>. Add the following environment variables to your <code>.bash_profile</code>:</p>
+
+<figure class='code'><figcaption><span>.bash_profile  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">export</span> <span class="no">JAVA_HOME</span><span class="o">=</span><span class="sr">/usr/</span><span class="n">java</span><span class="o">/</span><span class="n">jdk1</span><span class="o">.</span><span class="mi">6</span><span class="o">.</span><span class="mo">0_25</span>
+</span><span class='line'><span class="n">export</span> <span class="no">TORQUEBOX_HOME</span><span class="o">=</span><span class="vg">$HOME</span><span class="o">/</span><span class="n">torquebox</span><span class="o">-</span><span class="n">current</span>
+</span><span class='line'><span class="n">export</span> <span class="no">JRUBY_HOME_</span><span class="o">=</span><span class="vg">$$</span><span class="no">TORQUEBOX_HOME</span><span class="o">/</span><span class="n">jruby</span>
+</span><span class='line'><span class="n">export</span> <span class="no">JBOSS_HOME</span><span class="o">=</span><span class="vg">$TORQUEBOX_HOME</span><span class="o">/</span><span class="n">jboss</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>The TorqueBox binary comes along with JRuby. If you already have JRuby installed as part of the RVM, you can change the <code>JRUBY_HOME</code> path accordingly. Also, your <code>JAVA_HOME</code> must point to the appropriate JRE path.</p>
+
+<h3>Deploying your application on JBoss</h3>
+
+<p>TorqueBox needs a file <code>torquebox.yml</code> inside your config folder. This file is called the deployment descriptor which is simply a configuration of the various components required at the time of deployment. Let&#8217;s create that file.</p>
+
+<figure class='code'><figcaption><span>config/torquebox.yml  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">application</span><span class="p">:</span>
+</span><span class='line'>  <span class="n">env</span><span class="p">:</span> <span class="n">production</span>
+</span><span class='line'><span class="n">pooling</span><span class="p">:</span>
+</span><span class='line'>  <span class="n">web</span><span class="p">:</span>
+</span><span class='line'>    <span class="n">min</span><span class="p">:</span> <span class="mi">4</span>
+</span><span class='line'>    <span class="n">max</span><span class="p">:</span> <span class="mi">6</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>You will have to specify the deployment environment and the number of min and max runtimes. This <a href="http://torquebox.org/documentation/1.1.1/pooling.html">page</a> discusses the various types of runtime pools and helps you figure out what works best for you application. What we have defined here is a bounded pool. From the documentation&#8230;</p>
+
+<blockquote><p>A bounded pool is a typical resource pool with minimum and maximum capacity. Each interpreter managed by the pool is given out to a single client at a time. It is unavailable for any other client until the current owner returns it to the pool. The pool will ensure that a minimum number of interpreters are kept in the pool at all times. Additionally, a maximum capacity is specified to ensure that the pool does not grow unbounded.</p></blockquote>
+
+<p><code>RAILS_ENV=production rake torquebox:archive</code> will package the application into a java archive. The archive would be of the form <code>&lt;app_name&gt;.knob</code> where knob is a special suffix that TorqueBox uses. Copy the archive to the <code>$TORQUEBOX_HOME/apps</code> folder.</p>
+
+<p>To test your application, execute <code>$JBOSS_HOME/bin/run.sh</code>. This will boot up the JBOSS instance on port <code>8080</code> and spawn the minimum runtimes that we specified.</p>
+
+<h3>Daemonizing the application server</h3>
+
+<p>If your deployment environment is Ubuntu, TorqueBox offers a couple of rake tasks to add JBOSS server as an upstart service.</p>
+
+<figure class='code'> <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class='ruby'><span class='line'><span class="n">torquebox</span><span class="ss">:upstart:check</span>    <span class="c1">#Check if TorqueBox is installed as an upstart service</span>
+</span><span class='line'><span class="n">torquebox</span><span class="ss">:upstart:install</span>  <span class="c1">#Install TorqueBox as an upstart service</span>
+</span><span class='line'><span class="n">torquebox</span><span class="ss">:upstart:restart</span>  <span class="c1">#Restart TorqueBox when it is running as an upstart service</span>
+</span><span class='line'><span class="n">torquebox</span><span class="ss">:upstart:start</span>    <span class="c1">#Start TorqueBox when it is installed as an upstart service</span>
+</span><span class='line'><span class="n">torquebox</span><span class="ss">:upstart:stop</span>     <span class="c1">#Stop TorqueBox when it is installed as an upstart service</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>In our case, it was Cent OS. Refer to <a href="http://davidghedini.blogspot.com/2011/03/install-jboss-6-on-centos.html">Step 5 of this article</a> to add JBOSS as a service. After including that script, we should be able to start the server using <code>service jboss start</code></p>
+
+<h3>Some performance tuning tips</h3>
+
+<p><strong>Adding the InfiniSpan Cache Store</strong></p>
+
+<p>   You can replace the typical MemCache store with the TorqueBox cache store. The cool thing is that all the runtimes will share this cache store.</p>
+
+<figure class='code'><figcaption><span>config/production.rb </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class='rb'><span class='line'><span class="no">MyJRubyApp</span><span class="o">::</span><span class="no">Application</span><span class="o">.</span><span class="n">configure</span> <span class="k">do</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">action_controller</span><span class="o">.</span><span class="n">perform_caching</span> <span class="o">=</span> <span class="kp">true</span>
+</span><span class='line'>  <span class="n">config</span><span class="o">.</span><span class="n">cache_store</span> <span class="o">=</span> <span class="ss">:torque_box_store</span>
+</span><span class='line'><span class="k">end</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>Turning on gzip compression</strong></p>
+
+<p>To enable gzip compression on all the responses, edit the JBoss server descriptor and add <code>compression="force"</code></p>
+
+<figure class='code'><figcaption><span>default/deploy/jbossweb.sar/server.xml </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class='xml'><span class='line'><span class="nt">&lt;Connector</span> <span class="na">protocol=</span><span class="s">&quot;HTTP/1.1&quot;</span> <span class="na">port=</span><span class="s">&quot;${jboss.web.http.port}&quot;</span> <span class="na">address=</span><span class="s">&quot;${jboss.bind.address}&quot;</span>
+</span><span class='line'>         <span class="na">redirectPort=</span><span class="s">&quot;${jboss.web.https.port}&quot;</span> <span class="na">compression=</span><span class="s">&quot;force&quot;</span> <span class="nt">/&gt;</span>
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>Optimizing the Java memory params</strong></p>
+
+<p>Our setup spawns 6 runtimes at peak load and we should be setting the heap size accordingly. Edit <code>$JBOSS_HOME/bin/run.conf</code> and set the values accordingly. In our experience, 6 runtimes never required more than <code>3098m</code> of heap size. Also, it is a good practice to set <code>xms</code> and <code>xmx</code> to the same values.</p>
+
+<figure class='code'><figcaption><span>$JBOSS_HOME/bin/run.conf  </span></figcaption>
+ <div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class='sh'><span class='line'><span class="k">if</span> <span class="o">[</span> <span class="s2">&quot;x$JAVA_OPTS&quot;</span> <span class="o">=</span> <span class="s2">&quot;x&quot;</span> <span class="o">]</span>; <span class="k">then</span>
+</span><span class='line'><span class="k">   </span><span class="nv">JAVA_OPTS</span><span class="o">=</span><span class="s2">&quot;-Xms3098m -Xmx3098m -XX:MaxPermSize=512m -Dorg.jboss.resolver.warning=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000&quot;</span>
+</span><span class='line'><span class="k">fi</span>
+</span></code></pre></td></tr></table></div></figure>
+
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">RC</span></span>
+
+      
+
+
+
+
+<time datetime="2011-10-02 14:57:00 +0530" pubdate  updated >Oct 2<span>nd</span>, 2011</time>
+
+
+
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/jruby/'>jruby</a>, <a class='category' href='/blog/categories/rails/'>rails</a>
+  
+</span>
+
+
+    </p>
+    
+      <div class="sharing">
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox/" data-via="" data-counturl="http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox/" >Tweet</a>
+  
+  
+  <g:plusone size="medium"></g:plusone>
+  
+</div>
+
+    
+  </footer>
+</article>
+
+</div>
+
+      
+        <aside role=sidebar><section id='about'>
+  <img src="/images/rc_blog_profile.jpg"/>
+  <div id='text'>
+    A random dude who loves programming and building things. This is a journal of my coding adventures.
+  </div>
+</section>
+
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2011/10/02/deploying-a-rails-application-on-torquebox/">Deploying a Rails Application on TorqueBox</a>
+      </li>
+    
+  </ul>
+</section>
+
+<section id="social">
+  <h1>Social</h1>
+  <ul>
+    <li class="github">
+      <a href="https://github.com/alohomora" target="_blank">Github</a>
+    </li>
+    <li class="twitter">
+      <a href="http://twitter.com/#!/rc_chandru" target="_blank">Twitter</a>
+    </li>
+    <li class="stackoverflow">
+      <a href="http://stackoverflow.com/users/49186/dexter" target="_blank">Stack Overflow</a>
+    </li>
+  </ul>
+</section>
+
+
+
+
+
+
+
+</aside>
+      
+    </div>
+  </div>
+  <footer><p>
+  Copyright &copy; 2011 - RC -
+  <span class="credit">Powered by <a href="http://octopress.org" target="_blank">Octopress</a></span>
+</p>
+<script type="text/javascript"> Cufon.now(); </script>
+</footer>
+</body>
+</html>

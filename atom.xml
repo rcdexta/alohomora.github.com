@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title></title>
+  <link href="http://alohomora.github.com/atom.xml" rel="self"/>
+  <link href="http://alohomora.github.com/"/>
+  <updated>2011-10-02T22:10:56+05:30</updated>
+  <id>http://alohomora.github.com/</id>
+  <author>
+    <name>RC</name>
+    
+  </author>
+
+  
+  <entry>
+    <title>Deploying a Rails Application on TorqueBox</title>
+    <link href="http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox/"/>
+    <updated>2011-10-02T14:57:00+05:30</updated>
+    <id>http://alohomora.github.com/blog/2011/10/02/deploying-a-rails-application-on-torquebox</id>
+    <content type="html">&lt;p&gt;&lt;img class=&quot;left&quot; src=&quot;/images/posts/knob.png&quot;&gt;
+Previously, we used Warbler/Tomcat setup to deploy our JRuby on Rails applications. We were working on performance tuning one of those applications and came across &lt;a href=&quot;http://torquebox.org/&quot;&gt;TorqueBox&lt;/a&gt;. Support for rack applications, scheduled jobs, built-in high-performance cache store on top of &lt;a href=&quot;http://www.jboss.org/infinispan&quot;&gt;Infinispan&lt;/a&gt; and &lt;a href=&quot;http://www.jboss.org/jbossas&quot;&gt;JBoss AS&lt;/a&gt; application server all sounded pretty exciting. So, we went ahead and migrated our application to TorqueBox. We could clearly see improvements in performance and the actual benchmarking comparisons will be published in another post in the future.&lt;/p&gt;
+
+&lt;p&gt;Though the TorqueBox documentation is well written, when it comes to migrating a fully-featured application to another framework, we faced several hiccups. I had to look-up several blogs, forums and many SO threads to resolve those issues. This article aims at documenting all that information in once place.&lt;/p&gt;
+
+&lt;!&#8211;more&#8211;&gt;
+
+
+&lt;h3&gt;Adding TorqueBox to your application&lt;/h3&gt;
+
+&lt;p&gt;Add the &lt;code&gt;torquebox&lt;/code&gt; gem to your Gemfile only for the deployment environments. This is because TorqueBox gems have several dependencies and this affects the load time for development and test environments. It is essential that you specify the platform as &lt;code&gt;jruby&lt;/code&gt; to make bundler install the dependencies correctly.&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;Gemfile  &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;ruby&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;group&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:qa&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:staging&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:production&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;  &lt;span class=&quot;n&quot;&gt;gem&lt;/span&gt; &lt;span class=&quot;s1&quot;&gt;&amp;#39;torquebox&amp;#39;&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;,&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:platforms&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&amp;gt;&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:jruby&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;Installing the gem gives us access to a couple of rake tasks that assist in deployment and also the TorqueBox cache store client, in case your application uses caching.&lt;/p&gt;
+
+&lt;h3&gt;Installing the TorqueBox binary&lt;/h3&gt;
+
+&lt;p&gt;Let&amp;#8217;s assume you are configuring TorqueBox in the production environment. The next step is to install the binary distribution that contains the TorqueBox server.  You can download the latest stable version Torque 1.1.1 &lt;a href=&quot;http://repository-torquebox.forge.cloudbees.com/release/org/torquebox/torquebox-dist/1.1.1/torquebox-dist-1.1.1-bin.zip&quot;&gt;here&lt;/a&gt;. Please note that you need to have at least Java JDK 6 installed on your deployment machine for TorqueBox to work.&lt;/p&gt;
+
+&lt;p&gt;Unzip the binary to some folder on your machine. I assume the folder name as &lt;code&gt;torquebox-current&lt;/code&gt;. Add the following environment variables to your &lt;code&gt;.bash_profile&lt;/code&gt;:&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;.bash_profile  &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;4&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;ruby&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;JAVA_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;sr&quot;&gt;/usr/&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;java&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jdk1&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;mo&quot;&gt;0_25&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;TORQUEBOX_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;vg&quot;&gt;$HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;-&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;current&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;JRUBY_HOME_&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;vg&quot;&gt;$$&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;TORQUEBOX_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jruby&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;export&lt;/span&gt; &lt;span class=&quot;no&quot;&gt;JBOSS_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;vg&quot;&gt;$TORQUEBOX_HOME&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;/&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;jboss&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;The TorqueBox binary comes along with JRuby. If you already have JRuby installed as part of the RVM, you can change the &lt;code&gt;JRUBY_HOME&lt;/code&gt; path accordingly. Also, your &lt;code&gt;JAVA_HOME&lt;/code&gt; must point to the appropriate JRE path.&lt;/p&gt;
+
+&lt;h3&gt;Deploying your application on JBoss&lt;/h3&gt;
+
+&lt;p&gt;TorqueBox needs a file &lt;code&gt;torquebox.yml&lt;/code&gt; inside your config folder. This file is called the deployment descriptor which is simply a configuration of the various components required at the time of deployment. Let&amp;#8217;s create that file.&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;config/torquebox.yml  &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;4&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;5&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;6&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;ruby&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;application&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;  &lt;span class=&quot;n&quot;&gt;env&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;n&quot;&gt;production&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;pooling&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;  &lt;span class=&quot;n&quot;&gt;web&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;    &lt;span class=&quot;n&quot;&gt;min&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;4&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;    &lt;span class=&quot;n&quot;&gt;max&lt;/span&gt;&lt;span class=&quot;p&quot;&gt;:&lt;/span&gt; &lt;span class=&quot;mi&quot;&gt;6&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;You will have to specify the deployment environment and the number of min and max runtimes. This &lt;a href=&quot;http://torquebox.org/documentation/1.1.1/pooling.html&quot;&gt;page&lt;/a&gt; discusses the various types of runtime pools and helps you figure out what works best for you application. What we have defined here is a bounded pool. From the documentation&amp;#8230;&lt;/p&gt;
+
+&lt;blockquote&gt;&lt;p&gt;A bounded pool is a typical resource pool with minimum and maximum capacity. Each interpreter managed by the pool is given out to a single client at a time. It is unavailable for any other client until the current owner returns it to the pool. The pool will ensure that a minimum number of interpreters are kept in the pool at all times. Additionally, a maximum capacity is specified to ensure that the pool does not grow unbounded.&lt;/p&gt;&lt;/blockquote&gt;
+
+&lt;p&gt;&lt;code&gt;RAILS_ENV=production rake torquebox:archive&lt;/code&gt; will package the application into a java archive. The archive would be of the form &lt;code&gt;&amp;lt;app_name&amp;gt;.knob&lt;/code&gt; where knob is a special suffix that TorqueBox uses. Copy the archive to the &lt;code&gt;$TORQUEBOX_HOME/apps&lt;/code&gt; folder.&lt;/p&gt;
+
+&lt;p&gt;To test your application, execute &lt;code&gt;$JBOSS_HOME/bin/run.sh&lt;/code&gt;. This will boot up the JBOSS instance on port &lt;code&gt;8080&lt;/code&gt; and spawn the minimum runtimes that we specified.&lt;/p&gt;
+
+&lt;h3&gt;Daemonizing the application server&lt;/h3&gt;
+
+&lt;p&gt;If your deployment environment is Ubuntu, TorqueBox offers a couple of rake tasks to add JBOSS server as an upstart service.&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt; &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;4&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;5&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;ruby&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:upstart:check&lt;/span&gt;    &lt;span class=&quot;c1&quot;&gt;#Check if TorqueBox is installed as an upstart service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:upstart:install&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;#Install TorqueBox as an upstart service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:upstart:restart&lt;/span&gt;  &lt;span class=&quot;c1&quot;&gt;#Restart TorqueBox when it is running as an upstart service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:upstart:start&lt;/span&gt;    &lt;span class=&quot;c1&quot;&gt;#Start TorqueBox when it is installed as an upstart service&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;n&quot;&gt;torquebox&lt;/span&gt;&lt;span class=&quot;ss&quot;&gt;:upstart:stop&lt;/span&gt;     &lt;span class=&quot;c1&quot;&gt;#Stop TorqueBox when it is installed as an upstart service&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;In our case, it was Cent OS. Refer to &lt;a href=&quot;http://davidghedini.blogspot.com/2011/03/install-jboss-6-on-centos.html&quot;&gt;Step 5 of this article&lt;/a&gt; to add JBOSS as a service. After including that script, we should be able to start the server using &lt;code&gt;service jboss start&lt;/code&gt;&lt;/p&gt;
+
+&lt;h3&gt;Some performance tuning tips&lt;/h3&gt;
+
+&lt;p&gt;&lt;strong&gt;Adding the InfiniSpan Cache Store&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;   You can replace the typical MemCache store with the TorqueBox cache store. The cool thing is that all the runtimes will share this cache store.&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;config/production.rb &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;4&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;rb&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;no&quot;&gt;MyJRubyApp&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;::&lt;/span&gt;&lt;span class=&quot;no&quot;&gt;Application&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;configure&lt;/span&gt; &lt;span class=&quot;k&quot;&gt;do&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;  &lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;action_controller&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;perform_caching&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;kp&quot;&gt;true&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;  &lt;span class=&quot;n&quot;&gt;config&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;.&lt;/span&gt;&lt;span class=&quot;n&quot;&gt;cache_store&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;ss&quot;&gt;:torque_box_store&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;k&quot;&gt;end&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;&lt;strong&gt;Turning on gzip compression&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;To enable gzip compression on all the responses, edit the JBoss server descriptor and add &lt;code&gt;compression=&quot;force&quot;&lt;/code&gt;&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;default/deploy/jbossweb.sar/server.xml &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;xml&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;nt&quot;&gt;&amp;lt;Connector&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;protocol=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;HTTP/1.1&amp;quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;port=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;${jboss.web.http.port}&amp;quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;address=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;${jboss.bind.address}&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;         &lt;span class=&quot;na&quot;&gt;redirectPort=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;${jboss.web.https.port}&amp;quot;&lt;/span&gt; &lt;span class=&quot;na&quot;&gt;compression=&lt;/span&gt;&lt;span class=&quot;s&quot;&gt;&amp;quot;force&amp;quot;&lt;/span&gt; &lt;span class=&quot;nt&quot;&gt;/&amp;gt;&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+
+&lt;p&gt;&lt;strong&gt;Optimizing the Java memory params&lt;/strong&gt;&lt;/p&gt;
+
+&lt;p&gt;Our setup spawns 6 runtimes at peak load and we should be setting the heap size accordingly. Edit &lt;code&gt;$JBOSS_HOME/bin/run.conf&lt;/code&gt; and set the values accordingly. In our experience, 6 runtimes never required more than &lt;code&gt;3098m&lt;/code&gt; of heap size. Also, it is a good practice to set &lt;code&gt;xms&lt;/code&gt; and &lt;code&gt;xmx&lt;/code&gt; to the same values.&lt;/p&gt;
+
+&lt;figure class=&#8217;code&#8217;&gt;&lt;figcaption&gt;&lt;span&gt;$JBOSS_HOME/bin/run.conf  &lt;/span&gt;&lt;/figcaption&gt;
+ &lt;div class=&quot;highlight&quot;&gt;&lt;table&gt;&lt;tr&gt;&lt;td class=&quot;gutter&quot;&gt;&lt;pre class=&quot;line-numbers&quot;&gt;&lt;span class=&#8217;line-number&#8217;&gt;1&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;2&lt;/span&gt;
+&lt;span class=&#8217;line-number&#8217;&gt;3&lt;/span&gt;
+&lt;/pre&gt;&lt;/td&gt;&lt;td class=&#8217;code&#8217;&gt;&lt;pre&gt;&lt;code class=&#8217;sh&#8217;&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;k&quot;&gt;if&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;[&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;x$JAVA_OPTS&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;=&lt;/span&gt; &lt;span class=&quot;s2&quot;&gt;&amp;quot;x&amp;quot;&lt;/span&gt; &lt;span class=&quot;o&quot;&gt;]&lt;/span&gt;; &lt;span class=&quot;k&quot;&gt;then&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;k&quot;&gt;   &lt;/span&gt;&lt;span class=&quot;nv&quot;&gt;JAVA_OPTS&lt;/span&gt;&lt;span class=&quot;o&quot;&gt;=&lt;/span&gt;&lt;span class=&quot;s2&quot;&gt;&amp;quot;-Xms3098m -Xmx3098m -XX:MaxPermSize=512m -Dorg.jboss.resolver.warning=true -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000&amp;quot;&lt;/span&gt;
+&lt;/span&gt;&lt;span class=&#8217;line&#8217;&gt;&lt;span class=&quot;k&quot;&gt;fi&lt;/span&gt;
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;&lt;/div&gt;&lt;/figure&gt;
+
+</content>
+  </entry>
+  
+</feed>
