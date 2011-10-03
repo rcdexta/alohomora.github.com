@@ -51,6 +51,14 @@ body > nav {
       margin-left: .8em;
       float: right;
       li:last-child a { padding-right: 0; }
+      li {
+        a {
+          img {
+            margin-top: -6px;
+            vertical-align: top;
+          }
+        }
+      }
     }
     ul li {
       margin: 0;
