@@ -9,7 +9,7 @@ aside[role=sidebar] {
     @extend .sans;
     font-size: .8em;
     line-height: 1.4em;
-    margin-bottom: 1.5em;
+    margin-bottom: 1.0em;
     h1 {
       margin: 1.5em 0 0;
       padding-bottom: .2em;
@@ -22,14 +22,17 @@ aside[role=sidebar] {
   }
 
   section#about{
-      img {
-        float: left;
-        margin: 10px;
-        max-height: 120px;
-      }
-      div#text{
-        padding-top: 5px;
-      }
+    img {
+      float: left;
+      margin: 10px;
+      max-height: 120px;
+    }
+    div#text{
+      padding-top: 15px;
+    }
+    div.clear{
+      clear: both;
+    }
   }
 
   section#social{
